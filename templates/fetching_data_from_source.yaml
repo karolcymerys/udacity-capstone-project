@@ -1,0 +1,126 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Fetching data from source module
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  EnvironmentName:
+    Description: Environment name
+    Type: String
+
+  DataSourceName:
+    Description: Data source name
+    Type: String
+
+  SNSTopicARN:
+    Description: ARN of SNS Topic to consume messages
+    Type: String
+
+  LambdaDownloaderCode:
+    Description: Lambda downloader code
+    Type: String
+
+  LoggingLevel:
+    Description: Logging level
+    Type: String
+
+  S3BucketName:
+    Description: S3 Bucket name to store data
+    Type: String
+
+Resources:
+  SNSSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: sqs
+      Endpoint: !GetAtt DataSourceQueue.Arn
+      TopicArn: !Sub ${SNSTopicARN}
+      RawMessageDelivery: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt SNSSubscriptionQueueDLQ.Arn
+      FilterPolicy:
+        source_name:
+          - !Sub ${DataSourceName}
+
+  SNSSubscriptionQueueDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${EnvironmentName}-${DataSourceName}-sns-subscription-dlq
+      MessageRetentionPeriod: 1209600
+
+  DataSourceQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${EnvironmentName}-${DataSourceName}-queue
+      VisibilityTimeout: 360
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt DataSourceQueueDLQ.Arn
+        maxReceiveCount: 5
+
+  DataSourceQueueDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${EnvironmentName}-${DataSourceName}-queue-dlq
+      MessageRetentionPeriod: 1209600
+
+  DataSourceQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Id: QueuePolicy
+        Statement:
+          - Sid: SendMessage-DataSource
+            Effect: Allow
+            Principal: '*'
+            Action:
+              - sqs:SendMessage
+            Resource:
+              - !GetAtt DataSourceQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Sub ${SNSTopicARN}
+          - Sid: SendMessage-SNSSubscriptionDLQ
+            Effect: Allow
+            Principal: '*'
+            Action:
+              - sqs:SendMessage
+            Resource:
+              - !GetAtt SNSSubscriptionQueueDLQ.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Sub ${SNSTopicARN}
+      Queues:
+        - !Ref DataSourceQueue
+        - !Ref SNSSubscriptionQueueDLQ
+
+  LambdaDownloader:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${EnvironmentName}-${DataSourceName}-consumer
+      Description: Lambda function to fetch data from source and save to S3 Bucket
+      CodeUri: !Sub ${LambdaDownloaderCode}
+      Handler: lambda_downloader.handler
+      MemorySize: 512
+      Timeout: 60
+      Runtime: python3.9
+      Environment:
+        Variables:
+          LOGGING_LEVEL: !Sub ${LoggingLevel}
+          S3_BUCKET_NAME: !Sub ${S3BucketName}
+      Events:
+        SqsMessageEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt DataSourceQueue.Arn
+            BatchSize: 1
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: !GetAtt DataSourceQueue.QueueName
+        - S3WritePolicy:
+            BucketName: !Sub ${S3BucketName}
+
+  LambdaDownloaderLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${EnvironmentName}-${DataSourceName}-consumer
+      RetentionInDays: 1

@@ -1,0 +1,35 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Fetching data from sources
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  EnvironmentName:
+    Description: Environment name
+    Type: String
+
+  LoggingLevel:
+    Description: Logging level
+    Type: String
+
+  S3BucketName:
+    Description: S3 Bucket name to store data
+    Type: String
+
+Resources:
+  SNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub ${EnvironmentName}-sns-topic
+
+  Source1Stack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: SNSTopic
+    Properties:
+      TemplateURL: ./fetching_data_from_source.yaml
+      Parameters:
+        EnvironmentName: !Sub ${EnvironmentName}
+        DataSourceName: source1
+        SNSTopicARN: !Ref SNSTopic
+        LoggingLevel: !Sub ${LoggingLevel}
+        LambdaDownloaderCode: ../fetching_data/lambda/source_1
+        S3BucketName: !Sub ${S3BucketName}

@@ -1,0 +1,32 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: AWS Infrastructure for Udacity Capstone Project
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  EnvironmentName:
+    Description: Environment name
+    Type: String
+
+  LoggingLevel:
+    Description: Logging level
+    Type: String
+
+Resources:
+  FetchingDataModule:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: ./templates/fetching_data.yaml
+      Parameters:
+        EnvironmentName: !Sub ${EnvironmentName}
+        LoggingLevel: !Sub ${LoggingLevel}
+        S3BucketName: !Ref DataS3Bucket
+
+  DataS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${EnvironmentName}-udacity-capstone-project
+      LifecycleConfiguration:
+        Rules:
+          - ExpirationInDays: 1
+            Prefix: raw_data
+            Status: Enabled
