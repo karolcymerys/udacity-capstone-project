@@ -12,10 +12,18 @@ Parameters:
     Type: String
 
 Resources:
+  #StepFunctionsProcess:
+  #  Type: AWS::CloudFormation::Stack
+  #  Properties:
+  #    TemplateURL: ./step_functions/step_functions.yaml
+  #    Parameters:
+  #      EnvironmentName: !Sub ${EnvironmentName}
+  #      LoggingLevel: !Sub ${LoggingLevel}
+
   FetchingDataModule:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: ./templates/fetching_data.yaml
+      TemplateURL: ./fetching_data/fetching_data.yaml
       Parameters:
         EnvironmentName: !Sub ${EnvironmentName}
         LoggingLevel: !Sub ${LoggingLevel}
