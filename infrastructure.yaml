@@ -12,14 +12,6 @@ Parameters:
     Type: String
 
 Resources:
-  #StepFunctionsProcess:
-  #  Type: AWS::CloudFormation::Stack
-  #  Properties:
-  #    TemplateURL: ./step_functions/step_functions.yaml
-  #    Parameters:
-  #      EnvironmentName: !Sub ${EnvironmentName}
-  #      LoggingLevel: !Sub ${LoggingLevel}
-
   FetchingDataModule:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -27,6 +19,14 @@ Resources:
       Parameters:
         EnvironmentName: !Sub ${EnvironmentName}
         LoggingLevel: !Sub ${LoggingLevel}
+        S3BucketName: !Ref DataS3Bucket
+
+  RedshiftInfrastructure:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: ./redshift/redshift.yaml
+      Parameters:
+        EnvironmentName: !Sub ${EnvironmentName}
         S3BucketName: !Ref DataS3Bucket
 
   DataS3Bucket:

@@ -1,0 +1,134 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Fetching data from sources
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  EnvironmentName:
+    Description: Environment name
+    Type: String
+
+  S3BucketName:
+    Description: S3 Bucket name to store data
+    Type: String
+
+Resources:
+  RedshiftCluster:
+    Type: AWS::Redshift::Cluster
+    DependsOn:
+      - RedshiftVPCGatewayAttachment
+      - RedshiftEIP
+      - RedshiftClusterSubnetGroup
+    Properties:
+      ClusterIdentifier: !Sub ${EnvironmentName}-redshift-cluster
+      ClusterType: multi-node
+      NumberOfNodes: 2
+      NodeType: dc2.large
+      ClusterSubnetGroupName: !Ref RedshiftClusterSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref RedshiftSecurityGroup
+      DBName: udacity-capstone-project
+      MasterUsername: admin
+      MasterUserPassword: AwsSecret123
+      IamRoles:
+        - !GetAtt RedshiftIAMRole.Arn
+      PubliclyAccessible: true
+      ElasticIp: !Ref RedshiftEIP
+
+  RedshiftVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+
+  InternetGatewayRedhiftVPC:
+    Type: AWS::EC2::InternetGateway
+
+  RedshiftVPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    DependsOn: InternetGatewayRedhiftVPC
+    Properties:
+      InternetGatewayId: !Ref InternetGatewayRedhiftVPC
+      VpcId: !Ref RedshiftVPC
+
+  RedshiftVPCRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref RedshiftVPC
+
+  InternetGatewayVPCRoute:
+    Type: AWS::EC2::Route
+    DependsOn: RedshiftVPCGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGatewayRedhiftVPC
+      RouteTableId: !Ref RedshiftVPCRouteTable
+
+  RedshiftSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref RedshiftSubnetA
+      RouteTableId: !Ref RedshiftVPCRouteTable
+
+  RedshiftSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Sub ${AWS::Region}a
+      MapPublicIpOnLaunch: true
+      CidrBlock: 10.0.0.0/24
+      VpcId: !Ref RedshiftVPC
+
+  RedshiftEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  RedshiftClusterSubnetGroup:
+    Type: AWS::Redshift::ClusterSubnetGroup
+    Properties:
+      Description: Redshift cluster subnet group
+      SubnetIds:
+        - !Ref RedshiftSubnetA
+
+  RedshiftSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub ${EnvironmentName}-redshift-security-group
+      VpcId: !Ref RedshiftVPC
+
+  RedshiftSecurityGroupAllIngressRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Ingress for Redshift
+      IpProtocol: tcp
+      FromPort: 5439
+      ToPort: 5439
+      CidrIp: 0.0.0.0/0
+      GroupId: !Ref RedshiftSecurityGroup
+
+  RedshiftIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${EnvironmentName}-redshift-role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - redshift.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: s3
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetBucketLocation
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  - !Sub arn:aws:s3:::${S3BucketName}
