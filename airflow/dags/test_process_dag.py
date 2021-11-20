@@ -7,6 +7,7 @@ from airflow import DAG
 from airflow.models import BaseOperator, Connection
 from airflow.operators.dummy import DummyOperator
 from airflow.providers.amazon.aws.hooks.sns import AwsSnsHook
+from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.sensors.base import BaseSensorOperator
 
 
@@ -36,7 +37,7 @@ class StreamSourcesOperator(BaseOperator):
         dates = [self.step_start_date[0] + datetime.timedelta(days=d) for d in range(delta.days + 1)]
         messages = [{
             'source': self.link_template % date.strftime(self.date_format),
-            'destination': f'raw_data/{self.source_name}/{date.year}/{date.month}/{date.day}/data.csv'
+            'destination': f'raw_data/{self.source_name}/{date.year}_{date.month}_{date.day}_data.csv'
         } for date in dates]
 
         for message in messages:
@@ -82,6 +83,53 @@ class QueueStateSensor(BaseSensorOperator):
                int(queue_attributes['ApproximateNumberOfMessages']) == 0
 
 
+class CreateExternalTableOperator(BaseOperator):
+
+    def __init__(self,
+                redshift_conn_id,
+                table_name,
+                 *args, **kwargs):
+        super(CreateExternalTableOperator, self).__init__(*args, **kwargs)
+        self.postgres_hook = PostgresHook(redshift_conn_id)
+        self.table_name = table_name
+
+    def execute(self, context: Any):
+        self.log.info(f'External table creation started')
+        self.postgres_hook.run("""
+            BEGIN; END;
+            CREATE EXTERNAL TABLE s3_schema.{table_name}(
+                "date" DATE,
+                newCases int,
+                areaName varchar,
+                areaCode varchar,
+                cumulativeNewCases int)
+            row format delimited fields terminated by ','
+            stored as textfile
+            location 's3://dev-udacity-capstone-project/raw_data/{table_name}/'
+            TABLE PROPERTIES ('skip.header.line.count'='1');
+        """.format(**{'table_name': self.table_name}))
+        self.log.info(f'External table created')
+
+
+class DeleteExternalTableOperator(BaseOperator):
+
+    def __init__(self,
+                redshift_conn_id,
+                table_name,
+                 *args, **kwargs):
+        super(DeleteExternalTableOperator, self).__init__(*args, **kwargs)
+        self.postgres_hook = PostgresHook(redshift_conn_id)
+        self.table_name = table_name
+
+    def execute(self, context: Any):
+        self.log.info(f'External table deletion started')
+        self.postgres_hook.run("""
+            BEGIN; END;
+            DROP TABLE IF EXISTS s3_schema.{table_name};
+        """.format(**{'table_name': self.table_name}))
+        self.log.info(f'External table deleted')
+
+
 with DAG('test_process_dag',
          description='ETL Process to extract, transform, load covid data',
          start_date=datetime.datetime.now()) as dag:
@@ -102,8 +150,16 @@ with DAG('test_process_dag',
                                            poke_interval=30,
                                            timeout=30*60,
                                            environment_name='dev',
-                                           aws_conn_id='aws_credentials',)
+                                           aws_conn_id='aws_credentials')
+
+    create_external_table_operator = CreateExternalTableOperator(task_id='create_external_table_for_source_1', dag=dag,
+                                                                 redshift_conn_id='redshift_connection',
+                                                                 table_name='source1')
+
+    delete_external_table_operator = DeleteExternalTableOperator(task_id='delete_external_table_for_source_1', dag=dag,
+                                                                 redshift_conn_id='redshift_connection',
+                                                                 table_name='source1')
 
     end_operator = DummyOperator(task_id='finish_execution',  dag=dag)
 
-    start_operator >> streaming_operator >> empty_queues_sensor >> end_operator
+    start_operator >> streaming_operator >> empty_queues_sensor >> create_external_table_operator >> delete_external_table_operator >> end_operator

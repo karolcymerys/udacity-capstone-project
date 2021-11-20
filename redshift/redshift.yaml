@@ -132,3 +132,18 @@ Resources:
                   - s3:PutObject
                 Resource:
                   - !Sub arn:aws:s3:::${S3BucketName}
+                  - !Sub arn:aws:s3:::${S3BucketName}/raw_data/*
+        - PolicyName: glue
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - glue:CreateDatabase
+                  - glue:CreateTable
+                  - glue:DeleteTable
+                  - glue:GetTable
+                Resource:
+                  - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog
+                  - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/udacity-capstone-project
+                  - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/udacity-capstone-project/*
