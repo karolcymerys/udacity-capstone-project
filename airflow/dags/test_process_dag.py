@@ -98,17 +98,113 @@ class CreateExternalTableOperator(BaseOperator):
         self.postgres_hook.run("""
             BEGIN; END;
             CREATE EXTERNAL TABLE s3_schema.{table_name}(
-                "date" DATE,
+                dateTime DATE,
                 newCases int,
                 areaName varchar,
                 areaCode varchar,
                 cumulativeNewCases int)
-            row format delimited fields terminated by ','
+            row format serde 'org.apache.hadoop.hive.serde2.OpenCSVSerde'
+            with serdeproperties (
+              'separatorChar' = ',',
+              'quoteChar' = '\"',
+              'escapeChar' = '\\\\'
+            )
             stored as textfile
             location 's3://dev-udacity-capstone-project/raw_data/{table_name}/'
             TABLE PROPERTIES ('skip.header.line.count'='1');
         """.format(**{'table_name': self.table_name}))
         self.log.info(f'External table created')
+
+
+class CreateFactTableOperator(BaseOperator):
+
+    def __init__(self,
+                redshift_conn_id,
+                 aws_conn_id,
+                 *args, **kwargs):
+        super(CreateFactTableOperator, self).__init__(*args, **kwargs)
+        self.postgres_hook = PostgresHook(redshift_conn_id)
+        conn = Connection.get_connection_from_secrets(aws_conn_id)
+        self.s3_client = boto3.client('s3',
+                                       region_name='eu-west-1',
+                                       aws_access_key_id=conn.login,
+                                       aws_secret_access_key=conn.password)
+
+    def execute(self, context: Any):
+        self.log.info(f'Fact table creation started')
+        self.postgres_hook.run("""
+            unload('SELECT 
+                extract(''epoch'' from file.dateTime) as date_id,
+                file.areaCode as area_id,
+                file.newCases as new_cases 
+            FROM s3_schema.source1 file')
+            to 's3://dev-udacity-capstone-project/fact_tables/covid_stats/'
+            iam_role 'arn:aws:iam::534172043736:role/dev-redshift-role'
+            FORMAT as PARQUET
+            PARTITION BY ( date_id);
+        """)
+        self.log.info(f'Fact table creation finished')
+
+        self.log.info(f'Adding partitions started')
+        partitions = self.s3_client.list_objects(Bucket='dev-udacity-capstone-project', Prefix='fact_tables/covid_stats/date_id')['Contents']
+        for partition in partitions:
+            partition_value = partition['Key'].split('/')[2].split('=')[1]
+            self.postgres_hook.run(f"""
+                        BEGIN;END;
+                        alter table s3_schema.factCovid_stats
+                            add if not exists partition (date_id='{partition_value}') 
+                            location 's3://dev-udacity-capstone-project/fact_tables/covid_stats/date_id={partition_value}';
+                    """)
+        self.log.info(f'Adding partitions finished')
+
+
+class CreateDim1TableOperator(BaseOperator):
+
+    def __init__(self,
+                redshift_conn_id,
+                 *args, **kwargs):
+        super(CreateDim1TableOperator, self).__init__(*args, **kwargs)
+        self.postgres_hook = PostgresHook(redshift_conn_id)
+
+    def execute(self, context: Any):
+        self.log.info(f'Fact table dimTime creation started')
+        self.postgres_hook.run("""
+            insert into dimTime
+                SELECT distinct 
+                    extract('epoch' from file.dateTime) as date_id,
+                    EXTRACT(day FROM file.dateTime) as day,
+                    EXTRACT(week FROM file.dateTime) as week,
+                    EXTRACT(month FROM file.dateTime) as month,
+                    EXTRACT(year FROM file.dateTime) as year,
+                    EXTRACT(dayofweek FROM file.dateTime) as weekday
+                FROM s3_schema.source1 file
+        """)
+        self.log.info(f'Fact table dimTime creation finished')
+
+
+class CreateDim2TableOperator(BaseOperator):
+
+    def __init__(self,
+                redshift_conn_id,
+                 *args, **kwargs):
+        super(CreateDim2TableOperator, self).__init__(*args, **kwargs)
+        self.postgres_hook = PostgresHook(redshift_conn_id)
+
+    def execute(self, context: Any):
+        self.log.info(f'Fact table dimTime creation started')
+        self.postgres_hook.run("""
+            insert into dimArea
+                SELECT distinct 
+                    file.areaCode as area_id,
+                    file.areaName as city,
+                    case when SUBSTRING(file.areaCode, 1, 1) = 'E' then 'England'
+                         when SUBSTRING(file.areaCode, 1, 1) = 'N' then 'Northern Ireland'
+                         when SUBSTRING(file.areaCode, 1, 1) = 'S' then 'Scotland'
+                         when SUBSTRING(file.areaCode, 1, 1) = 'W' then 'Wales'
+                    end as country
+                FROM s3_schema.source1 file
+        """)
+        self.log.info(f'Fact table dimTime creation finished')
 
 
 class DeleteExternalTableOperator(BaseOperator):
@@ -156,10 +252,23 @@ with DAG('test_process_dag',
                                                                  redshift_conn_id='redshift_connection',
                                                                  table_name='source1')
 
+    import_fact_data = CreateFactTableOperator(task_id='import_fact_data_for_source_1', dag=dag,
+                                               redshift_conn_id='redshift_connection', aws_conn_id='aws_credentials')
+
+    import_dim_1_data = CreateDim1TableOperator(task_id='import_dim1_data_for_source_1', dag=dag,
+                                                redshift_conn_id='redshift_connection')
+
+    import_dim_2_data = CreateDim2TableOperator(task_id='import_dim2_data_for_source_1', dag=dag,
+                                                redshift_conn_id='redshift_connection')
+
+
     delete_external_table_operator = DeleteExternalTableOperator(task_id='delete_external_table_for_source_1', dag=dag,
                                                                  redshift_conn_id='redshift_connection',
                                                                  table_name='source1')
 
     end_operator = DummyOperator(task_id='finish_execution',  dag=dag)
 
-    start_operator >> streaming_operator >> empty_queues_sensor >> create_external_table_operator >> delete_external_table_operator >> end_operator
+    start_operator >> streaming_operator >> empty_queues_sensor >> create_external_table_operator >> import_fact_data
+    import_fact_data >> import_dim_1_data >> delete_external_table_operator
+    import_fact_data >> import_dim_2_data >> delete_external_table_operator
+    delete_external_table_operator >> end_operator
