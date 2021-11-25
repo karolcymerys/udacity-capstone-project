@@ -28,7 +28,7 @@ Resources:
       TemplateURL: ./fetching_data_from_source.yaml
       Parameters:
         EnvironmentName: !Sub ${EnvironmentName}
-        DataSourceName: source1
+        DataSourceName: source_uk
         SNSTopicARN: !Ref SNSTopic
         LoggingLevel: !Sub ${LoggingLevel}
         LambdaDownloaderCode: ../fetching_data/lambda/source_1

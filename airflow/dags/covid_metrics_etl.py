@@ -8,44 +8,11 @@ from airflow.operators.dummy import DummyOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.task_group import TaskGroup
 
+from operators.create_staging_table_operator import CreateStagingTableOperator
 from operators.source_stream_operator import StreamSourcesOperator
 from sensors.queue_state_sensor import QueueStateSensor
 
 AWS_REGION = 'eu-west-1'
-
-
-class CreateExternalTableOperator(BaseOperator):
-
-    def __init__(self,
-                 redshift_conn_id,
-                 table_name,
-                 *args, **kwargs):
-        super(CreateExternalTableOperator, self).__init__(*args, **kwargs)
-        self.postgres_hook = PostgresHook(redshift_conn_id)
-        self.table_name = table_name
-
-    def execute(self, context: Any):
-        self.log.info(f'External table creation started')
-        self.postgres_hook.run("""
-            BEGIN; END;
-            CREATE EXTERNAL TABLE s3_schema.{table_name}(
-                dateTime DATE,
-                newCases int,
-                areaName varchar,
-                areaCode varchar,
-                cumulativeNewCases int)
-            row format serde 'org.apache.hadoop.hive.serde2.OpenCSVSerde'
-            with serdeproperties (
-              'separatorChar' = ',',
-              'quoteChar' = '\"',
-              'escapeChar' = '\\\\'
-            )
-            stored as textfile
-            location 's3://dev-udacity-capstone-project/raw_data/{table_name}/'
-            TABLE PROPERTIES ('skip.header.line.count'='1');
-        """.format(**{'table_name': self.table_name}))
-        self.log.info(f'External table created')
-
 
 class CreateFactTableOperator(BaseOperator):
 
@@ -168,7 +135,7 @@ with DAG('covid_metrics_etl',
         uk_data_stream_operator = StreamSourcesOperator(task_id='stream_data_for_uk',
                                                         aws_conn_id='aws_credentials',
                                                         aws_region=AWS_REGION,
-                                                        source_name='source1',
+                                                        source_name='source_uk',
                                                         target_arn='arn:aws:sns:eu-west-1:534172043736:dev-sns-topic',
                                                         first_date_to_import='2021-8-1',
                                                         last_date_to_import='2021-11-16',
@@ -178,11 +145,9 @@ with DAG('covid_metrics_etl',
                                                                       '&structure={"date":"date",'
                                                                       '"newCases":"newCasesByPublishDate",'
                                                                       '"areaName": "areaName",'
-                                                                      '"areaCode": "areaCode",'
-                                                                      '"cumulativeNewCases": "cumCasesByPublishDate"}'
+                                                                      '"areaCode": "areaCode"}'
                                                                       '&format=csv',
                                                         source_date_format='%Y-%m-%d')
-
 
     queues_state_sensor = QueueStateSensor(task_id='wait_for_queue_to_be_empty',
                                            poke_interval=30,
@@ -191,9 +156,16 @@ with DAG('covid_metrics_etl',
                                            aws_conn_id='aws_credentials',
                                            aws_region=AWS_REGION)
 
-    create_external_table_operator = CreateExternalTableOperator(task_id='create_external_table_for_source_1', dag=dag,
-                                                                 redshift_conn_id='redshift_connection',
-                                                                 table_name='source1')
+    with TaskGroup(group_id='staging_tables_creation') as staging_tables_creation:
+        create_external_table_operator = CreateStagingTableOperator(task_id='create_staging_table_for_uk',
+                                                                    redshift_conn_id='redshift_connection',
+                                                                    table_name='source_uk',
+                                                                    file_structure={
+                                                                        'date_time': 'date',
+                                                                        'new_cases': 'int',
+                                                                        'area_name': 'varchar',
+                                                                        'area_code': 'varchar'
+                                                                    })
 
     import_fact_data = CreateFactTableOperator(task_id='import_fact_data_for_source_1', dag=dag,
                                                redshift_conn_id='redshift_connection', aws_conn_id='aws_credentials')
@@ -210,7 +182,7 @@ with DAG('covid_metrics_etl',
 
     end_operator = DummyOperator(task_id='finish_execution', dag=dag)
 
-    start_operator >> stream_sources_group >> queues_state_sensor >> create_external_table_operator >> import_fact_data
+    start_operator >> stream_sources_group >> queues_state_sensor >> staging_tables_creation >> import_fact_data
     import_fact_data >> import_dim_1_data >> delete_external_table_operator
     import_fact_data >> import_dim_2_data >> delete_external_table_operator
     delete_external_table_operator >> end_operator
