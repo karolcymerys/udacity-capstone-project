@@ -11,17 +11,18 @@ CREATE TABLE dimTime (
     month      SMALLINT  NOT NULL,
     year       SMALLINT  NOT NULL,
     weekday    SMALLINT  NOT NULL
-)
+);
 
 CREATE TABLE dimArea (
     area_id    VARCHAR   NOT NULL PRIMARY KEY SORTKEY,
-    city       VARCHAR   NOT NULL,
+    name       VARCHAR   NOT NULL,
     country    VARCHAR   NOT NULL
-)
+);
 
-CREATE EXTERNAL TABLE s3_schema.factCovid_stats(
-	area_id   varchar,
-	new_cases int)
-PARTITIONED by (date_id bigint)
-STORED as PARQUET
-location 's3://dev-udacity-capstone-project/fact_tables/covid_stats/';
+CREATE TABLE factNewCase (
+    date_id    BIGINT   NOT NULL PRIMARY KEY SORTKEY,
+    area_id    VARCHAR  NOT NULL DISTKEY,
+    new_cases  INT  NOT NULL,
+    FOREIGN KEY (date_id) REFERENCES dimTime(date_id),
+    FOREIGN KEY (area_id) REFERENCES dimArea(area_id)
+);

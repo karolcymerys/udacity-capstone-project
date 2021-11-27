@@ -33,7 +33,7 @@ class CreateStagingTableOperator(BaseOperator):
         self.log.info(f'Started creating staging table {self.table_name} as external table.')
         query = self.QUERY_TEMPLATE.format(**{
             'table_name': self.table_name,
-            'data_structure': ', '.join([f'' for field, datatype in self.file_structure.items()])
+            'data_structure': ', '.join([f'{field} {datatype}' for field, datatype in self.file_structure.items()])
         })
         self.postgres_hook.run(query)
         self.log.info(f'Finished creating staging table {self.table_name} as external table.')

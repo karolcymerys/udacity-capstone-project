@@ -21,7 +21,7 @@ class QueueStateSensor(BaseSensorOperator):
     def poke(self, context) -> bool:
         self.log.info(f'Starting checking states of queues with prefix {self.queues_name_prefix}')
         queues = self.__search_queues_with_prefix_name(self.queues_name_prefix)
-        for queue_url in queues['QueueUrls']:
+        for queue_url in queues:
             if not self._is_queue_empty(queue_url):
                 self.log.info(
                     f'Finishing checking states of queues with prefix {self.queues_name_prefix}. '
