@@ -5,6 +5,7 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 class LoadDataTableOperator(BaseOperator):
 
     SQL_TEMPLATE = '''
+        SET json_serialization_enable TO TRUE;
         INSERT INTO {table_name}
             {select_statement}
         '''

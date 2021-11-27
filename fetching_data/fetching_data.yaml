@@ -21,15 +21,26 @@ Resources:
     Properties:
       TopicName: !Sub ${EnvironmentName}-sns-topic
 
-  Source1Stack:
+  UKSourceStack:
     Type: AWS::CloudFormation::Stack
     DependsOn: SNSTopic
     Properties:
       TemplateURL: ./fetching_data_from_source.yaml
       Parameters:
         EnvironmentName: !Sub ${EnvironmentName}
-        DataSourceName: source_uk
+        DataSourceName: uk_source
         SNSTopicARN: !Ref SNSTopic
         LoggingLevel: !Sub ${LoggingLevel}
-        LambdaDownloaderCode: ../fetching_data/lambda/source_1
+        S3BucketName: !Sub ${S3BucketName}
+
+  CandaSourceStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: SNSTopic
+    Properties:
+      TemplateURL: ./fetching_data_from_source.yaml
+      Parameters:
+        EnvironmentName: !Sub ${EnvironmentName}
+        DataSourceName: canada_source
+        SNSTopicARN: !Ref SNSTopic
+        LoggingLevel: !Sub ${LoggingLevel}
         S3BucketName: !Sub ${S3BucketName}

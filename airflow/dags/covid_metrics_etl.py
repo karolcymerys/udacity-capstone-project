@@ -5,7 +5,7 @@ from airflow.operators.dummy import DummyOperator
 from airflow.utils.task_group import TaskGroup
 
 from helpers.link_templates import LinkTemplates
-from helpers.source_data_format import SourceDataFormat
+from helpers.source_data_format import SourceDataDetails
 from helpers.sql_queries import SQLQueries
 from operators.create_staging_table_operator import CreateStagingTableOperator
 from operators.delete_staging_table_operator import DeleteStagingTableOperator
@@ -18,6 +18,8 @@ AWS_REGION = 'eu-west-1'
 REDSHIFT_CONNECTION = 'redshift_connection'
 ENVIRONMENT_NAME = 'dev'
 TOPIC_ARN = 'arn:aws:sns:eu-west-1:534172043736:dev-sns-topic'
+DATE_RANGE = ('2021-11-1', '2021-11-2')
+
 with DAG('covid_metrics_etl',
          description='ETL process to extract, transform, load covid metrics',
          start_date=datetime.datetime.now()) as dag:
@@ -27,12 +29,21 @@ with DAG('covid_metrics_etl',
         uk_data_stream_operator = StreamSourcesOperator(task_id='stream_data_for_uk',
                                                         aws_conn_id=AWS_CREDENTIALS,
                                                         aws_region=AWS_REGION,
-                                                        source_name='source_uk',
+                                                        source_name='uk_source',
                                                         target_arn=TOPIC_ARN,
-                                                        first_date_to_import='2021-11-1',
-                                                        last_date_to_import='2021-11-16',
-                                                        link_template=LinkTemplates.UK_SOURCE,
-                                                        source_date_format='%Y-%m-%d')
+                                                        date_range=DATE_RANGE,
+                                                        link_template=LinkTemplates.UK_CASES_SOURCE,
+                                                        data_format='csv')
+
+        canada_data_stream_operator = StreamSourcesOperator(task_id='stream_data_for_canada',
+                                                            aws_conn_id=AWS_CREDENTIALS,
+                                                            aws_region=AWS_REGION,
+                                                            source_name='canada_source',
+                                                            target_arn=TOPIC_ARN,
+                                                            date_range=DATE_RANGE,
+                                                            link_template=LinkTemplates.CANADA_CASES_SOURCE,
+                                                            url_parameters=LinkTemplates.CANADA_CASES_SOURCE_URL_PARAMS,
+                                                            data_format='json')
 
     queues_state_sensor = QueueStateSensor(task_id='wait_for_queue_to_be_empty',
                                            poke_interval=30,
@@ -44,8 +55,17 @@ with DAG('covid_metrics_etl',
     with TaskGroup(group_id='staging_tables_creation') as staging_tables_creation:
         uk_create_external_table_operator = CreateStagingTableOperator(task_id='create_staging_table_for_uk',
                                                                        redshift_conn_id=REDSHIFT_CONNECTION,
-                                                                       table_name='source_uk',
-                                                                       file_structure=SourceDataFormat.UK)
+                                                                       table_name='uk_source',
+                                                                       file_structure=SourceDataDetails.UK_DATA_FORMAT,
+                                                                       file_format=SourceDataDetails.CSV_FORMAT,
+                                                                       file_properties=SourceDataDetails.UK_FORMAT_PROPERTIES)
+
+        canada_create_external_table_operator = CreateStagingTableOperator(task_id='create_staging_table_for_canada',
+                                                                           redshift_conn_id=REDSHIFT_CONNECTION,
+                                                                           table_name='canada_source',
+                                                                           file_structure=SourceDataDetails.CANADA_DATA_FORMAT,
+                                                                           file_format=SourceDataDetails.JSON_FORMAT,
+                                                                           file_properties=SourceDataDetails.CANADA_FORMAT_PROPERTIES)
 
     with TaskGroup(group_id='loading_data') as loading_data:
         uk_loading_data_to_fact_table = LoadDataTableOperator(task_id='loading_data_to_fact_table_for_uk',
@@ -63,10 +83,29 @@ with DAG('covid_metrics_etl',
         uk_loading_data_to_fact_table >> uk_loading_data_to_dim_area_table
         uk_loading_data_to_fact_table >> uk_loading_data_to_dim_time_table
 
+        canada_loading_data_to_fact_table = LoadDataTableOperator(task_id='loading_data_to_fact_table_for_canada',
+                                                                  redshift_conn_id=REDSHIFT_CONNECTION,
+                                                                  table_name='factNewCase',
+                                                                  select_query=SQLQueries.CANADA_LOAD_DATA_TO_FACT_TABLE)
+        canada_loading_data_to_dim_time_table = LoadDataTableOperator(task_id='loading_data_to_dim_time_table_for_canada',
+                                                                      redshift_conn_id=REDSHIFT_CONNECTION,
+                                                                      table_name='dimTime',
+                                                                      select_query=SQLQueries.CANADA_LOAD_DATA_TO_DIM_TIME_TABLE)
+        canada_loading_data_to_dim_area_table = LoadDataTableOperator(task_id='loading_data_to_dim_area_table_for_canada',
+                                                                      redshift_conn_id=REDSHIFT_CONNECTION,
+                                                                      table_name='dimArea',
+                                                                      select_query=SQLQueries.CANADA_LOAD_DATA_TO_DIM_AREA_TABLE)
+        canada_loading_data_to_fact_table >> canada_loading_data_to_dim_time_table
+        canada_loading_data_to_fact_table >> canada_loading_data_to_dim_area_table
+
     with TaskGroup(group_id='deleting_staging_tables') as deleting_staging_tables:
         uk_delete_staging_table_operator = DeleteStagingTableOperator(task_id='delete_external_table_for_uk',
                                                                       redshift_conn_id=REDSHIFT_CONNECTION,
-                                                                      table_name='source_uk')
+                                                                      table_name='uk_source')
+
+        canada_delete_staging_table_operator = DeleteStagingTableOperator(task_id='delete_external_table_for_canada',
+                                                                          redshift_conn_id=REDSHIFT_CONNECTION,
+                                                                          table_name='canada_source')
 
     end_operator = DummyOperator(task_id='finish_execution', dag=dag)
 

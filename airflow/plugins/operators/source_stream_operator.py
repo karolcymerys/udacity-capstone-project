@@ -1,5 +1,7 @@
 import datetime
+import itertools
 import json
+from collections import ChainMap
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sns import AwsSnsHook
@@ -10,38 +12,49 @@ class StreamSourcesOperator(BaseOperator):
     def __init__(self,
                  aws_conn_id,
                  aws_region,
-                 source_name,
                  target_arn,
-                 first_date_to_import,
-                 last_date_to_import,
+                 date_range,
+                 source_name,
                  link_template,
-                 source_date_format,
+                 data_format,
+                 source_date_format='%Y-%m-%d',
+                 url_parameters={},
                  *args, **kwargs):
         super(StreamSourcesOperator, self).__init__(*args, **kwargs)
         self.aws_sns_hook = AwsSnsHook(aws_conn_id=aws_conn_id, region_name=aws_region)
-        self.source_name = source_name
         self.target_arn = target_arn
-        self.step_start_date = datetime.datetime.strptime(first_date_to_import, '%Y-%m-%d'),
-        self.step_end_date = datetime.datetime.strptime(last_date_to_import, '%Y-%m-%d')
+
+        self.step_start_date = datetime.datetime.strptime(date_range[0], '%Y-%m-%d')
+        self.step_end_date = datetime.datetime.strptime(date_range[1], '%Y-%m-%d')
+
+        self.source_name = source_name
         self.link_template = link_template
         self.source_date_format = source_date_format
+        self.url_parameters = url_parameters
+        self.data_format = data_format
 
     def execute(self, context):
         self.log.info(f'Starting streaming links for source {self.source_name}.')
-        dates = self.__get_all_dates()
-        messages = self.__build_messages(dates)
+        self.url_parameters.update({'date': self.__get_all_dates()})
+        messages = self.__build_messages(self.url_parameters)
         self.__send_messages(messages)
         self.log.info(f'Finishing. All {len(messages)} links for source {self.source_name} have been sent.')
 
     def __get_all_dates(self):
-        delta = self.step_end_date - self.step_start_date[0]
-        return [self.step_start_date[0] + datetime.timedelta(days=d) for d in range(delta.days + 1)]
+        delta = (self.step_end_date - self.step_start_date)
+        return [(self.step_start_date + datetime.timedelta(days=d)).strftime(self.source_date_format) for d in range(delta.days + 1)]
 
-    def __build_messages(self, dates):
+    def __build_messages(self, parameters):
+        parameter_groups = []
+        for param, values in parameters.items():
+            parameter_groups.append([{param: value} for value in values])
+
+        parameter_groups = [dict(ChainMap(*group)) for group in list(itertools.product(*parameter_groups))]
+
         return [{
-            'source': self.link_template % date.strftime(self.source_date_format),
-            'destination': f'raw_data/{self.source_name}/{date.year}_{date.month}_{date.day}_data.csv'
-        } for date in dates]
+            'source': self.link_template.format(**params),
+            'destination': f'raw_data/{self.source_name}/{"_".join([ value for value in params.values()])}_data.{self.data_format}'
+        } for params in parameter_groups]
 
     def __send_messages(self, messages):
         for message in messages:

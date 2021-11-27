@@ -15,10 +15,6 @@ Parameters:
     Description: ARN of SNS Topic to consume messages
     Type: String
 
-  LambdaDownloaderCode:
-    Description: Lambda downloader code
-    Type: String
-
   LoggingLevel:
     Description: Logging level
     Type: String
@@ -98,7 +94,7 @@ Resources:
     Properties:
       FunctionName: !Sub ${EnvironmentName}-${DataSourceName}-consumer
       Description: Lambda function to fetch data from source and save to S3 Bucket
-      CodeUri: !Sub ${LambdaDownloaderCode}
+      CodeUri: ./lambda
       Handler: lambda_downloader.handler
       MemorySize: 512
       Timeout: 60
