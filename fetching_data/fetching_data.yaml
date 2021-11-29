@@ -44,3 +44,15 @@ Resources:
         SNSTopicARN: !Ref SNSTopic
         LoggingLevel: !Sub ${LoggingLevel}
         S3BucketName: !Sub ${S3BucketName}
+
+  USASourceStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: SNSTopic
+    Properties:
+      TemplateURL: ./fetching_data_from_source.yaml
+      Parameters:
+        EnvironmentName: !Sub ${EnvironmentName}
+        DataSourceName: usa_source
+        SNSTopicARN: !Ref SNSTopic
+        LoggingLevel: !Sub ${LoggingLevel}
+        S3BucketName: !Sub ${S3BucketName}

@@ -50,3 +50,24 @@ class SQLQueries:
                 'Canada' as country
             FROM s3_schema.canada_source file
         '''
+    USA_LOAD_DATA_TO_FACT_TABLE = '''
+        SELECT file."date" as date_id,
+                coalesce(file.fips, md5(county || state)) as area_id,
+                file.cases - coalesce(LAG(file.cases) OVER (PARTITION BY area_id order by date_id), 0) as new_cases
+            FROM s3_schema.usa_source file
+        '''
+    USA_LOAD_DATA_TO_DIM_TIME_TABLE = '''
+        SELECT DISTINCT file."date" as date_id,
+                EXTRACT(day FROM date_id) as day,
+                EXTRACT(week FROM date_id) as week,
+                EXTRACT(month FROM date_id) as month,
+                EXTRACT(year FROM date_id) as year,
+                EXTRACT(dayofweek FROM date_id) as weekday
+            FROM s3_schema.usa_source file
+        '''
+    USA_LOAD_DATA_TO_DIM_AREA_TABLE = '''
+        SELECT DISTINCT coalesce(file.fips, md5(county || state)) as area_id,
+                file.county as name,
+                'United States' as country
+            FROM s3_schema.usa_source file
+        '''

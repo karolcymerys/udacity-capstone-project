@@ -7,3 +7,5 @@ class LinkTemplates:
     CANADA_CASES_SOURCE_URL_PARAMS = {
         'province': ['ON', 'QC', 'NS', 'NB', 'MB', 'BC', 'PE', 'SK', 'AB', 'NL', 'NT', 'YT', 'NU']
     }
+
+    USA_CASES_SOURCE = 'https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv'
