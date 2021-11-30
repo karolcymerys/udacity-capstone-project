@@ -5,7 +5,6 @@ from airflow.operators.dummy import DummyOperator
 from airflow.utils.task_group import TaskGroup
 
 from helpers.link_templates import LinkTemplates
-from helpers.source_data_format import SourceDataDetails
 from helpers.sql_queries import SQLQueries
 from operators.create_staging_table_operator import CreateStagingTableOperator
 from operators.delete_staging_table_operator import DeleteStagingTableOperator
@@ -64,24 +63,15 @@ with DAG('covid_metrics_etl',
     with TaskGroup(group_id='staging_tables_creation') as staging_tables_creation:
         uk_create_external_table_operator = CreateStagingTableOperator(task_id='create_staging_table_for_uk',
                                                                        redshift_conn_id=REDSHIFT_CONNECTION,
-                                                                       table_name='uk_source',
-                                                                       file_structure=SourceDataDetails.UK_DATA_FORMAT,
-                                                                       file_format=SourceDataDetails.CSV_FORMAT,
-                                                                       file_properties=SourceDataDetails.UK_FORMAT_PROPERTIES)
+                                                                       sql_query=SQLQueries.UK_STAGING_TABLE)
 
         canada_create_external_table_operator = CreateStagingTableOperator(task_id='create_staging_table_for_canada',
                                                                            redshift_conn_id=REDSHIFT_CONNECTION,
-                                                                           table_name='canada_source',
-                                                                           file_structure=SourceDataDetails.CANADA_DATA_FORMAT,
-                                                                           file_format=SourceDataDetails.JSON_FORMAT,
-                                                                           file_properties=SourceDataDetails.CANADA_FORMAT_PROPERTIES)
+                                                                           sql_query=SQLQueries.CANADA_STAGING_TABLE)
 
         usa_create_external_table_operator = CreateStagingTableOperator(task_id='create_staging_table_for_usa',
                                                                         redshift_conn_id=REDSHIFT_CONNECTION,
-                                                                        table_name='usa_source',
-                                                                        file_structure=SourceDataDetails.USA_DATA_FORMAT,
-                                                                        file_format=SourceDataDetails.CSV_FORMAT,
-                                                                        file_properties=SourceDataDetails.USA_FORMAT_PROPERTIES)
+                                                                        sql_query=SQLQueries.USA_STAGING_TABLE)
 
     with TaskGroup(group_id='loading_data') as loading_data:
         uk_loading_data_to_fact_table = LoadDataTableOperator(task_id='loading_data_to_fact_table_for_uk',
