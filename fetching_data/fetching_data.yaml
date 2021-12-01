@@ -32,6 +32,7 @@ Resources:
         SNSTopicARN: !Ref SNSTopic
         LoggingLevel: !Sub ${LoggingLevel}
         S3BucketName: !Sub ${S3BucketName}
+        LambdaCode: ./lambda/uk_data_consumer
 
   USASourceStack:
     Type: AWS::CloudFormation::Stack
@@ -44,3 +45,4 @@ Resources:
         SNSTopicARN: !Ref SNSTopic
         LoggingLevel: !Sub ${LoggingLevel}
         S3BucketName: !Sub ${S3BucketName}
+        LambdaCode: ./lambda/usa_data_consumer

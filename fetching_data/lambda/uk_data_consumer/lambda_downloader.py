@@ -29,12 +29,8 @@ def handler(event, context):
     destination = message['destination']
 
     logger.info(f'Fetching data to: {source}')
-    response = requests.get(source)
-    if message.get('add_to_data'):
-        data = dict(**response.json(), **message['add_to_data'])
-        data = bytes(json.dumps(data), 'utf-8')
-    else:
-        data = response.content
+    response = requests.get(source).json()
+    data = bytes(json.dumps(response['data']), 'utf-8')
     logger.info(f'Saving data to S3: {destination}')
     s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=destination, Body=BytesIO(data))
     logger.info(f'Data saved in S3: {destination}')

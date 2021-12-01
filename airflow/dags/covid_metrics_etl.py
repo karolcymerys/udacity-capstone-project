@@ -32,7 +32,7 @@ with DAG('covid_metrics_etl',
                                                         target_arn=TOPIC_ARN,
                                                         date_range=DATE_RANGE,
                                                         link_template=LinkTemplates.UK_CASES_SOURCE,
-                                                        data_format='csv')
+                                                        data_format='json')
 
         usa_data_stream_operator = StreamSourcesOperator(task_id='stream_data_for_usa',
                                                          aws_conn_id=AWS_CREDENTIALS,

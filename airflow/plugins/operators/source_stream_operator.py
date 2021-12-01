@@ -1,9 +1,6 @@
 import datetime
-import itertools
 import json
-from collections import ChainMap
 
-import requests
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sns import AwsSnsHook
 
@@ -19,7 +16,6 @@ class StreamSourcesOperator(BaseOperator):
                  link_template,
                  data_format,
                  source_date_format='%Y-%m-%d',
-                 url_parameters={},
                  *args, **kwargs):
         super(StreamSourcesOperator, self).__init__(*args, **kwargs)
         self.aws_sns_hook = AwsSnsHook(aws_conn_id=aws_conn_id, region_name=aws_region)
@@ -31,59 +27,24 @@ class StreamSourcesOperator(BaseOperator):
         self.source_name = source_name
         self.link_template = link_template
         self.source_date_format = source_date_format
-        self.url_parameters = url_parameters
-        self.data_to_attach_by_parameter = {}
         self.data_format = data_format
 
     def execute(self, context):
         self.log.info(f'Starting streaming links for source {self.source_name}.')
-        parameters = self.__get_parameters()
-        parameters.update({'date': self.__get_all_dates()})
-        messages = self.__build_messages(parameters)
+        messages = self.__build_messages()
         self.__send_messages(messages)
         self.log.info(f'Finishing. All {len(messages)} links for source {self.source_name} have been sent.')
 
-    def __get_parameters(self):
-        parameters = {}
-
-        for parameter, data in self.url_parameters.items():
-            response = requests.get(data['source']).json()['data']
-            self.log.info(response)
-            parameters[parameter] = [param_value[data['property']] for param_value in response]
-            if data.get('attach_content_to_message'):
-                self.data_to_attach_by_parameter[parameter] = {param_value[data['property']]: param_value for param_value in response}
-
-        return parameters
-
     def __get_all_dates(self):
-        delta = (self.step_end_date - self.step_start_date)
-        return [(self.step_start_date + datetime.timedelta(days=d)).strftime(self.source_date_format) for d in range(delta.days + 1)]
+        delta = self.step_end_date - self.step_start_date
+        return [(self.step_start_date + datetime.timedelta(days=d)).strftime(self.source_date_format) for d in
+                range(delta.days + 1)]
 
-    def __build_messages(self, parameters):
-        parameter_groups = []
-        for param, values in parameters.items():
-            parameter_groups.append([{param: value} for value in values])
-
-        parameter_groups = [dict(ChainMap(*group)) for group in list(itertools.product(*parameter_groups))]
-
-        messages = []
-        for params in parameter_groups:
-            self.log.info(params)
-            additional_params = {}
-            for key, value in params.items():
-                if key in self.data_to_attach_by_parameter:
-                    additional_params.update(self.data_to_attach_by_parameter[key][value])
-            message = {
-                'source': self.link_template.format(**params),
-                'destination': f'raw_data/{self.source_name}/{"_".join([str(value) for value in params.values()])}_data.{self.data_format}',
-            }
-            if additional_params:
-                message['add_to_data'] = additional_params
-            self.log.info(message)
-            self.log.info(additional_params)
-            messages.append(message)
-        return messages
-
+    def __build_messages(self):
+        return [{
+            'source': self.link_template.format(**{'date': date}),
+            'destination': f'raw_data/{self.source_name}/{date}_data.{self.data_format}'
+        } for date in self.__get_all_dates()]
 
     def __send_messages(self, messages):
         for message in messages:

@@ -11,6 +11,10 @@ Parameters:
     Description: Data source name
     Type: String
 
+  LambdaCode:
+    Description: Lambda code source
+    Type: String
+
   SNSTopicARN:
     Description: ARN of SNS Topic to consume messages
     Type: String
@@ -94,7 +98,7 @@ Resources:
     Properties:
       FunctionName: !Sub ${EnvironmentName}-${DataSourceName}-consumer
       Description: Lambda function to fetch data from source and save to S3 Bucket
-      CodeUri: ./lambda
+      CodeUri: !Sub ${LambdaCode}
       Handler: lambda_downloader.handler
       MemorySize: 512
       Timeout: 60

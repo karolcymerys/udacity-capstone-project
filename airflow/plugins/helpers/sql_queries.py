@@ -2,30 +2,26 @@
 class SQLQueries:
     UK_STAGING_TABLE = '''
             BEGIN; END;
-            SET json_serialization_enable TO TRUE;
             CREATE EXTERNAL TABLE s3_schema.uk_source (
-                date_time   date,
-                area_code   varchar,
+                date_time   varchar,
                 area_name   varchar,
+                area_code   varchar,
                 new_cases   int)
-            ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.OpenCSVSerde'
+            ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
             WITH SERDEPROPERTIES (
-                'separatorChar' = ',',
-                'quoteChar' = '\"',
-                'escapeChar' = '\\\\')
+                'strip.outer.array' = 'true')
             STORED AS TEXTFILE
-            LOCATION 's3://dev-udacity-capstone-project/raw_data/uk_source/'
-            TABLE PROPERTIES ('skip.header.line.count'='1');
+            LOCATION 's3://dev-udacity-capstone-project/raw_data/uk_source/';
          '''
     UK_LOAD_DATA_TO_FACT_TABLE = '''
-        SELECT file.date_time as date_id,
+        SELECT TO_DATE(file.date_time, 'YYYY-MM-DD') as date_id,
                 file.area_code as region_id,
                 file.new_cases as new_cases 
             FROM s3_schema.uk_source file
         '''
     UK_LOAD_DATA_TO_DIM_TIME_TABLE = '''
         SELECT DISTINCT 
-                file.date_time as date_id,
+                TO_DATE(file.date_time, 'YYYY-MM-DD') as date_id,
                 EXTRACT(day FROM date_id) as day,
                 EXTRACT(week FROM date_id) as week,
                 EXTRACT(month FROM date_id) as month,
