@@ -46,46 +46,6 @@ class SQLQueries:
             FROM s3_schema.uk_source file
         '''
 
-    CANADA_STAGING_TABLE = '''
-            BEGIN; END;
-            CREATE EXTERNAL TABLE s3_schema.canada_source (
-                province     varchar,
-                last_updated varchar,
-                results      array<struct<"date":VARCHAR, change_cases:int, total_cases:int>>,
-                hr_uid       int,
-                engname      varchar,
-                frename      varchar)
-            ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
-            WITH SERDEPROPERTIES (
-                'mapping.results' = 'data')
-            STORED AS TEXTFILE
-            LOCATION 's3://dev-udacity-capstone-project/raw_data/canada_source/';
-        '''
-    CANADA_LOAD_DATA_TO_FACT_TABLE = '''
-        SELECT json_extract_path_text(json_extract_array_element_text(results, 0), 'date')::date as date_id,
-                md5(file.province||file.engname) as region_id,
-                json_extract_path_text(json_extract_array_element_text(results, 0), 'change_cases')::int as new_cases 
-            FROM s3_schema.canada_source file
-        '''
-    CANADA_LOAD_DATA_TO_DIM_TIME_TABLE = '''
-        SELECT DISTINCT 
-                json_extract_path_text(json_extract_array_element_text(results, 0), 'date')::date as date_id,
-                EXTRACT(day FROM date_id) as day,
-                EXTRACT(week FROM date_id) as week,
-                EXTRACT(month FROM date_id) as month,
-                EXTRACT(year FROM date_id) as year,
-                EXTRACT(dayofweek FROM date_id) as weekday
-            FROM s3_schema.canada_source file
-        '''
-    CANADA_LOAD_DATA_TO_DIM_REGION_TABLE = '''
-        SELECT DISTINCT 
-                md5(file.province) as region_id,
-                file.engname as name,
-                file.province as super_region,
-                'Canada' as country
-            FROM s3_schema.canada_source file
-        '''
-
     USA_STAGING_TABLE = '''
             BEGIN; END;
             CREATE EXTERNAL TABLE s3_schema.usa_source (

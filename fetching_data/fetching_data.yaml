@@ -33,18 +33,6 @@ Resources:
         LoggingLevel: !Sub ${LoggingLevel}
         S3BucketName: !Sub ${S3BucketName}
 
-  CandaSourceStack:
-    Type: AWS::CloudFormation::Stack
-    DependsOn: SNSTopic
-    Properties:
-      TemplateURL: ./fetching_data_from_source.yaml
-      Parameters:
-        EnvironmentName: !Sub ${EnvironmentName}
-        DataSourceName: canada_source
-        SNSTopicARN: !Ref SNSTopic
-        LoggingLevel: !Sub ${LoggingLevel}
-        S3BucketName: !Sub ${S3BucketName}
-
   USASourceStack:
     Type: AWS::CloudFormation::Stack
     DependsOn: SNSTopic

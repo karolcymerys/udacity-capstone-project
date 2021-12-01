@@ -34,16 +34,6 @@ with DAG('covid_metrics_etl',
                                                         link_template=LinkTemplates.UK_CASES_SOURCE,
                                                         data_format='csv')
 
-        canada_data_stream_operator = StreamSourcesOperator(task_id='stream_data_for_canada',
-                                                            aws_conn_id=AWS_CREDENTIALS,
-                                                            aws_region=AWS_REGION,
-                                                            source_name='canada_source',
-                                                            target_arn=TOPIC_ARN,
-                                                            date_range=DATE_RANGE,
-                                                            link_template=LinkTemplates.CANADA_CASES_SOURCE,
-                                                            url_parameters=LinkTemplates.CANADA_CASES_SOURCE_URL_PARAMS,
-                                                            data_format='json')
-
         usa_data_stream_operator = StreamSourcesOperator(task_id='stream_data_for_usa',
                                                          aws_conn_id=AWS_CREDENTIALS,
                                                          aws_region=AWS_REGION,
@@ -65,10 +55,6 @@ with DAG('covid_metrics_etl',
                                                                        redshift_conn_id=REDSHIFT_CONNECTION,
                                                                        sql_query=SQLQueries.UK_STAGING_TABLE)
 
-        canada_create_external_table_operator = CreateStagingTableOperator(task_id='create_staging_table_for_canada',
-                                                                           redshift_conn_id=REDSHIFT_CONNECTION,
-                                                                           sql_query=SQLQueries.CANADA_STAGING_TABLE)
-
         usa_create_external_table_operator = CreateStagingTableOperator(task_id='create_staging_table_for_usa',
                                                                         redshift_conn_id=REDSHIFT_CONNECTION,
                                                                         sql_query=SQLQueries.USA_STAGING_TABLE)
@@ -89,21 +75,6 @@ with DAG('covid_metrics_etl',
         uk_loading_data_to_fact_table >> uk_loading_data_to_dim_area_table
         uk_loading_data_to_fact_table >> uk_loading_data_to_dim_time_table
 
-        canada_loading_data_to_fact_table = LoadDataTableOperator(task_id='loading_data_to_fact_table_for_canada',
-                                                                  redshift_conn_id=REDSHIFT_CONNECTION,
-                                                                  table_name='factNewCase',
-                                                                  select_query=SQLQueries.CANADA_LOAD_DATA_TO_FACT_TABLE)
-        canada_loading_data_to_dim_time_table = LoadDataTableOperator(task_id='loading_data_to_dim_time_table_for_canada',
-                                                                      redshift_conn_id=REDSHIFT_CONNECTION,
-                                                                      table_name='dimTime',
-                                                                      select_query=SQLQueries.CANADA_LOAD_DATA_TO_DIM_TIME_TABLE)
-        canada_loading_data_to_dim_area_table = LoadDataTableOperator(task_id='loading_data_to_dim_area_table_for_canada',
-                                                                      redshift_conn_id=REDSHIFT_CONNECTION,
-                                                                      table_name='dimRegion',
-                                                                      select_query=SQLQueries.CANADA_LOAD_DATA_TO_DIM_REGION_TABLE)
-        canada_loading_data_to_fact_table >> canada_loading_data_to_dim_time_table
-        canada_loading_data_to_fact_table >> canada_loading_data_to_dim_area_table
-
         usa_loading_data_to_fact_table = LoadDataTableOperator(task_id='loading_data_to_fact_table_for_usa',
                                                                redshift_conn_id=REDSHIFT_CONNECTION,
                                                                table_name='factNewCase',
@@ -123,10 +94,6 @@ with DAG('covid_metrics_etl',
         uk_delete_staging_table_operator = DeleteStagingTableOperator(task_id='delete_external_table_for_uk',
                                                                       redshift_conn_id=REDSHIFT_CONNECTION,
                                                                       table_name='uk_source')
-
-        canada_delete_staging_table_operator = DeleteStagingTableOperator(task_id='delete_external_table_for_canada',
-                                                                          redshift_conn_id=REDSHIFT_CONNECTION,
-                                                                          table_name='canada_source')
 
         usa_delete_staging_table_operator = DeleteStagingTableOperator(task_id='delete_external_table_for_usa',
                                                                        redshift_conn_id=REDSHIFT_CONNECTION,
