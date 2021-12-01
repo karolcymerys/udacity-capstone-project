@@ -5,6 +5,7 @@ iam_role 'arn:aws:iam::534172043736:role/dev-redshift-role'
 CREATE EXTERNAL database IF NOT EXISTS;
 
 CREATE TABLE dimTime (
+    unique_id  BIGINT    IDENTITY(0,1),
     date_id    DATE      NOT NULL PRIMARY KEY SORTKEY,
     day        SMALLINT  NOT NULL,
     week       SMALLINT  NOT NULL,
@@ -14,6 +15,7 @@ CREATE TABLE dimTime (
 );
 
 CREATE TABLE dimRegion (
+    unique_id    BIGINT   IDENTITY(0,1),
     region_id    VARCHAR   NOT NULL PRIMARY KEY SORTKEY,
     super_region VARCHAR,
     name         VARCHAR   NOT NULL,
