@@ -13,16 +13,17 @@ CREATE TABLE dimTime (
     weekday    SMALLINT  NOT NULL
 );
 
-CREATE TABLE dimArea (
-    area_id    VARCHAR   NOT NULL PRIMARY KEY SORTKEY,
-    name       VARCHAR   NOT NULL,
-    country    VARCHAR   NOT NULL
+CREATE TABLE dimRegion (
+    region_id    VARCHAR   NOT NULL PRIMARY KEY SORTKEY,
+    super_region VARCHAR,
+    name         VARCHAR   NOT NULL,
+    country      VARCHAR   NOT NULL
 );
 
 CREATE TABLE factNewCase (
     date_id    DATE     NOT NULL PRIMARY KEY SORTKEY,
-    area_id    VARCHAR  NOT NULL DISTKEY,
+    region_id  VARCHAR  NOT NULL DISTKEY,
     new_cases  INT  NOT NULL,
-    FOREIGN KEY (date_id) REFERENCES dimTime(date_id),
-    FOREIGN KEY (area_id) REFERENCES dimArea(area_id)
+    FOREIGN KEY (date_id)   REFERENCES dimTime(date_id),
+    FOREIGN KEY (region_id) REFERENCES dimRegion(region_id)
 );

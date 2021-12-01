@@ -84,8 +84,8 @@ with DAG('covid_metrics_etl',
                                                                   select_query=SQLQueries.UK_LOAD_DATA_TO_DIM_TIME_TABLE)
         uk_loading_data_to_dim_area_table = LoadDataTableOperator(task_id='loading_data_to_dim_area_table_for_uk',
                                                                   redshift_conn_id=REDSHIFT_CONNECTION,
-                                                                  table_name='dimArea',
-                                                                  select_query=SQLQueries.UK_LOAD_DATA_TO_DIM_AREA_TABLE)
+                                                                  table_name='dimRegion',
+                                                                  select_query=SQLQueries.UK_LOAD_DATA_TO_DIM_REGION_TABLE)
         uk_loading_data_to_fact_table >> uk_loading_data_to_dim_area_table
         uk_loading_data_to_fact_table >> uk_loading_data_to_dim_time_table
 
@@ -99,8 +99,8 @@ with DAG('covid_metrics_etl',
                                                                       select_query=SQLQueries.CANADA_LOAD_DATA_TO_DIM_TIME_TABLE)
         canada_loading_data_to_dim_area_table = LoadDataTableOperator(task_id='loading_data_to_dim_area_table_for_canada',
                                                                       redshift_conn_id=REDSHIFT_CONNECTION,
-                                                                      table_name='dimArea',
-                                                                      select_query=SQLQueries.CANADA_LOAD_DATA_TO_DIM_AREA_TABLE)
+                                                                      table_name='dimRegion',
+                                                                      select_query=SQLQueries.CANADA_LOAD_DATA_TO_DIM_REGION_TABLE)
         canada_loading_data_to_fact_table >> canada_loading_data_to_dim_time_table
         canada_loading_data_to_fact_table >> canada_loading_data_to_dim_area_table
 
@@ -114,8 +114,8 @@ with DAG('covid_metrics_etl',
                                                                    select_query=SQLQueries.USA_LOAD_DATA_TO_DIM_TIME_TABLE)
         usa_loading_data_to_dim_area_table = LoadDataTableOperator(task_id='loading_data_to_dim_area_table_for_usa',
                                                                    redshift_conn_id=REDSHIFT_CONNECTION,
-                                                                   table_name='dimArea',
-                                                                   select_query=SQLQueries.USA_LOAD_DATA_TO_DIM_AREA_TABLE)
+                                                                   table_name='dimRegion',
+                                                                   select_query=SQLQueries.USA_LOAD_DATA_TO_DIM_REGION_TABLE)
         usa_loading_data_to_fact_table >> usa_loading_data_to_dim_time_table
         usa_loading_data_to_fact_table >> usa_loading_data_to_dim_area_table
 

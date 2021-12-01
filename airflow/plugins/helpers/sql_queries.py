@@ -19,7 +19,7 @@ class SQLQueries:
          '''
     UK_LOAD_DATA_TO_FACT_TABLE = '''
         SELECT file.date_time as date_id,
-                file.area_code as area_id,
+                file.area_code as region_id,
                 file.new_cases as new_cases 
             FROM s3_schema.uk_source file
         '''
@@ -33,10 +33,11 @@ class SQLQueries:
                 EXTRACT(dayofweek FROM date_id) as weekday
             FROM s3_schema.uk_source file
         '''
-    UK_LOAD_DATA_TO_DIM_AREA_TABLE = '''
+    UK_LOAD_DATA_TO_DIM_REGION_TABLE = '''
         SELECT DISTINCT 
-                file.area_code as area_id,
+                file.area_code as region_id,
                 file.area_name as name,
+                file.area_name as super_region,
                 case when SUBSTRING(file.area_code, 1, 1) = 'E' THEN 'England'
                      when SUBSTRING(file.area_code, 1, 1) = 'N' THEN 'Northern Ireland'
                      when SUBSTRING(file.area_code, 1, 1) = 'S' THEN 'Scotland'
@@ -50,7 +51,10 @@ class SQLQueries:
             CREATE EXTERNAL TABLE s3_schema.canada_source (
                 province     varchar,
                 last_updated varchar,
-                results      array<struct<"date":VARCHAR, change_cases:int, total_cases:int>>)
+                results      array<struct<"date":VARCHAR, change_cases:int, total_cases:int>>,
+                hr_uid       int,
+                engname      varchar,
+                frename      varchar)
             ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
             WITH SERDEPROPERTIES (
                 'mapping.results' = 'data')
@@ -59,7 +63,7 @@ class SQLQueries:
         '''
     CANADA_LOAD_DATA_TO_FACT_TABLE = '''
         SELECT json_extract_path_text(json_extract_array_element_text(results, 0), 'date')::date as date_id,
-                'CANADA_' || file.province as area_id,
+                md5(file.province||file.engname) as region_id,
                 json_extract_path_text(json_extract_array_element_text(results, 0), 'change_cases')::int as new_cases 
             FROM s3_schema.canada_source file
         '''
@@ -73,10 +77,11 @@ class SQLQueries:
                 EXTRACT(dayofweek FROM date_id) as weekday
             FROM s3_schema.canada_source file
         '''
-    CANADA_LOAD_DATA_TO_DIM_AREA_TABLE = '''
+    CANADA_LOAD_DATA_TO_DIM_REGION_TABLE = '''
         SELECT DISTINCT 
-                'CANADA_' || file.province as area_id,
-                file.province as name,
+                md5(file.province) as region_id,
+                file.engname as name,
+                file.province as super_region,
                 'Canada' as country
             FROM s3_schema.canada_source file
         '''
@@ -101,8 +106,8 @@ class SQLQueries:
         '''
     USA_LOAD_DATA_TO_FACT_TABLE = '''
         SELECT file."date" as date_id,
-                coalesce(file.fips, md5(county || state)) as area_id,
-                file.cases - coalesce(LAG(file.cases) OVER (PARTITION BY area_id order by date_id), 0) as new_cases
+                md5(county || state) as region_id,
+                file.cases - coalesce(LAG(file.cases) OVER (PARTITION BY region_id order by date_id), 0) as new_cases
             FROM s3_schema.usa_source file
         '''
     USA_LOAD_DATA_TO_DIM_TIME_TABLE = '''
@@ -114,9 +119,10 @@ class SQLQueries:
                 EXTRACT(dayofweek FROM date_id) as weekday
             FROM s3_schema.usa_source file
         '''
-    USA_LOAD_DATA_TO_DIM_AREA_TABLE = '''
-        SELECT DISTINCT coalesce(file.fips, md5(county || state)) as area_id,
+    USA_LOAD_DATA_TO_DIM_REGION_TABLE = '''
+        SELECT DISTINCT md5(county || state) as region_id,
                 file.county as name,
+                file.state as super_region,
                 'United States' as country
             FROM s3_schema.usa_source file
         '''
