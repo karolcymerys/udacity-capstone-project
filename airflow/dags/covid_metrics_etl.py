@@ -1,4 +1,5 @@
 import datetime
+import os
 
 from airflow import DAG
 from airflow.operators.dummy import DummyOperator
@@ -13,11 +14,13 @@ from operators.execute_query_operator import ExecuteQueryOperator
 from operators.source_stream_operator import StreamSourcesOperator
 from sensors.queue_state_sensor import QueueStateSensor
 
-AWS_CREDENTIALS = 'aws_credentials'
-AWS_REGION = 'eu-west-1'
-REDSHIFT_CONNECTION = 'redshift_connection'
-ENVIRONMENT_NAME = 'dev'
-TOPIC_ARN = 'arn:aws:sns:eu-west-1:534172043736:dev-sns-topic'
+AWS_CREDENTIALS = 'AWS_CREDENTIALS'
+REDSHIFT_CONNECTION = 'REDSHIFT_CONNECTION'
+
+AWS_REGION = os.environ['AWS_REGION']
+ENVIRONMENT_NAME = os.environ['ENVIRONMENT_NAME']
+TOPIC_ARN = os.environ['TOPIC_ARN']
+
 DATE_RANGE = ('2021-11-1', '2021-11-2')
 
 with DAG('covid_metrics_etl',
