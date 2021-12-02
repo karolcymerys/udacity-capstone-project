@@ -7,6 +7,7 @@ from airflow.utils.task_group import TaskGroup
 from helpers.link_templates import LinkTemplates
 from helpers.sql_queries import SQLQueries
 from operators.create_staging_table_operator import CreateStagingTableOperator
+from operators.data_quality_operator import DataQualityOperator
 from operators.delete_staging_table_operator import DeleteStagingTableOperator
 from operators.execute_query_operator import ExecuteQueryOperator
 from operators.source_stream_operator import StreamSourcesOperator
@@ -59,6 +60,15 @@ with DAG('covid_metrics_etl',
                                                                         redshift_conn_id=REDSHIFT_CONNECTION,
                                                                         sql_query=SQLQueries.USA_STAGING_TABLE)
 
+    with TaskGroup(group_id='data_quality_check') as data_quality_check:
+        uk_data_quality_check_operator = DataQualityOperator(task_id='data_quality_check_for_uk',
+                                                             redshift_conn_id=REDSHIFT_CONNECTION,
+                                                             test=SQLQueries.UK_DATA_QUALITY_CHECK)
+
+        usa_data_quality_check_operator = DataQualityOperator(task_id='data_quality_check_for_usa',
+                                                              redshift_conn_id=REDSHIFT_CONNECTION,
+                                                              test=SQLQueries.USA_DATA_QUALITY_CHECK)
+
     with TaskGroup(group_id='loading_data') as loading_data:
         uk_loading_data_to_fact_table = ExecuteQueryOperator(task_id='loading_data_to_fact_table_for_uk',
                                                              redshift_conn_id=REDSHIFT_CONNECTION,
@@ -104,4 +114,6 @@ with DAG('covid_metrics_etl',
 
     end_operator = DummyOperator(task_id='finish_execution', dag=dag)
 
-    start_operator >> stream_sources_group >> queues_state_sensor >> staging_tables_creation >> loading_data >> handling_duplicates_in_dim_tables >> deleting_staging_tables >> end_operator
+    start_operator >> stream_sources_group >> queues_state_sensor >> staging_tables_creation
+    staging_tables_creation >> data_quality_check >> loading_data
+    loading_data >> handling_duplicates_in_dim_tables >> deleting_staging_tables >> end_operator

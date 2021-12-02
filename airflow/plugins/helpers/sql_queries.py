@@ -13,6 +13,16 @@ class SQLQueries:
             STORED AS TEXTFILE
             LOCATION 's3://dev-udacity-capstone-project/raw_data/uk_source/';
          '''
+    UK_DATA_QUALITY_CHECK = {
+        'query': '''
+            SELECT count(*) 
+                FROM s3_schema.uk_source s 
+                WHERE s.date_time IS NULL OR 
+                    area_code is NULL OR 
+                    new_cases IS NULL
+                    ''',
+        'expected_result': 0
+    }
     UK_LOAD_DATA_TO_FACT_TABLE = '''
         INSERT INTO factNewCase (date_id, region_id, new_cases)
             SELECT TO_DATE(file.date_time, 'YYYY-MM-DD') as date_id,
@@ -63,6 +73,16 @@ class SQLQueries:
             LOCATION 's3://dev-udacity-capstone-project/raw_data/usa_source/'
             TABLE PROPERTIES ('skip.header.line.count'='1');
         '''
+
+    USA_DATA_QUALITY_CHECK = {
+        'query': '''
+            SELECT count(*) 
+                FROM s3_schema.usa_source s 
+                WHERE s."date" IS NULL OR 
+                    cases IS NULL
+                    ''',
+        'expected_result': 0
+    }
     USA_LOAD_DATA_TO_FACT_TABLE = '''
         INSERT INTO factNewCase (date_id, region_id, new_cases)
             SELECT file."date" as date_id,
