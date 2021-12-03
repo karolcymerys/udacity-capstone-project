@@ -11,7 +11,7 @@ class SQLQueries:
             WITH SERDEPROPERTIES (
                 'strip.outer.array' = 'true')
             STORED AS TEXTFILE
-            LOCATION 's3://dev-udacity-capstone-project/raw_data/uk_source/';
+            LOCATION 's3://{ENVIRONMENT_NAME}-udacity-capstone-project/raw_data/uk_source/';
          '''
     UK_DATA_QUALITY_CHECK = {
         'query': '''
@@ -70,7 +70,7 @@ class SQLQueries:
                 'quoteChar' = '\"',
                 'escapeChar' = '\\\\')
             STORED AS TEXTFILE
-            LOCATION 's3://dev-udacity-capstone-project/raw_data/usa_source/'
+            LOCATION 's3://{ENVIRONMENT_NAME}-udacity-capstone-project/raw_data/usa_source/'
             TABLE PROPERTIES ('skip.header.line.count'='1');
         '''
 

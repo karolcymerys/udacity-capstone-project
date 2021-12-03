@@ -1,7 +1,7 @@
 CREATE EXTERNAL SCHEMA s3_schema
 FROM DATA CATALOG
 DATABASE 'udacity-capstone-project'
-iam_role 'arn:aws:iam::534172043736:role/dev-redshift-role'
+iam_role 'arn:aws:iam::$AWS_ACCOUNT_ID:role/$ENVIRONMENT_NAME-redshift-role'
 CREATE EXTERNAL database IF NOT EXISTS;
 
 CREATE TABLE dimTime (

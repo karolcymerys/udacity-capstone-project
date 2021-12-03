@@ -57,11 +57,13 @@ with DAG('covid_metrics_etl',
     with TaskGroup(group_id='staging_tables_creation') as staging_tables_creation:
         uk_create_external_table_operator = CreateStagingTableOperator(task_id='create_staging_table_for_uk',
                                                                        redshift_conn_id=REDSHIFT_CONNECTION,
-                                                                       sql_query=SQLQueries.UK_STAGING_TABLE)
+                                                                       sql_query=SQLQueries.UK_STAGING_TABLE,
+                                                                       environment_name=ENVIRONMENT_NAME)
 
         usa_create_external_table_operator = CreateStagingTableOperator(task_id='create_staging_table_for_usa',
                                                                         redshift_conn_id=REDSHIFT_CONNECTION,
-                                                                        sql_query=SQLQueries.USA_STAGING_TABLE)
+                                                                        sql_query=SQLQueries.USA_STAGING_TABLE,
+                                                                        environment_name=ENVIRONMENT_NAME)
 
     with TaskGroup(group_id='data_quality_check') as data_quality_check:
         uk_data_quality_check_operator = DataQualityOperator(task_id='data_quality_check_for_uk',
