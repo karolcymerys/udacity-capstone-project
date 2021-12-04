@@ -1,5 +1,4 @@
-import boto3
-from airflow.models import Connection
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.sensors.base import BaseSensorOperator
 
 
@@ -12,11 +11,8 @@ class QueueStateSensor(BaseSensorOperator):
                  *args, **kwargs):
         super(QueueStateSensor, self).__init__(*args, **kwargs)
         self.queues_name_prefix = queues_name_prefix
-        conn = Connection.get_connection_from_secrets(aws_conn_id)
-        self.sqs_client = boto3.client('sqs',
-                                       region_name=aws_region,
-                                       aws_access_key_id=conn.login,
-                                       aws_secret_access_key=conn.password)
+        aws_hook = AwsBaseHook(aws_conn_id=aws_conn_id, client_type='sqs')
+        self.sqs_client = aws_hook.get_client_type(client_type='sqs', region_name=aws_region)
 
     def poke(self, context) -> bool:
         self.log.info(f'Starting checking states of queues with prefix {self.queues_name_prefix}')

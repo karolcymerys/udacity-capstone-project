@@ -2,6 +2,7 @@
 class SQLQueries:
     UK_STAGING_TABLE = '''
             BEGIN; END;
+            DROP TABLE IF EXISTS s3_schema.uk_source;
             CREATE EXTERNAL TABLE s3_schema.uk_source (
                 date_time   varchar,
                 area_name   varchar,
@@ -57,6 +58,7 @@ class SQLQueries:
 
     USA_STAGING_TABLE = '''
             BEGIN; END;
+            DROP TABLE IF EXISTS s3_schema.usa_source;
             CREATE EXTERNAL TABLE s3_schema.usa_source (
                 "date"  date,
                 county  varchar,
