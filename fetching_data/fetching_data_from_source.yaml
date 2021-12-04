@@ -15,6 +15,10 @@ Parameters:
     Description: Lambda code source
     Type: String
 
+  MaxConcurrentConsumers:
+    Desciption: Max number of concurrent consumers from SQS
+    Type: Number
+
   SNSTopicARN:
     Description: ARN of SNS Topic to consume messages
     Type: String
@@ -103,6 +107,7 @@ Resources:
       MemorySize: 512
       Timeout: 60
       Runtime: python3.9
+      ReservedConcurrentExecutions: !Sub ${MaxConcurrentConsumers}
       Environment:
         Variables:
           LOGGING_LEVEL: !Sub ${LoggingLevel}

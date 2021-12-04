@@ -33,6 +33,7 @@ Resources:
         LoggingLevel: !Sub ${LoggingLevel}
         S3BucketName: !Sub ${S3BucketName}
         LambdaCode: ./lambda/uk_data_consumer
+        MaxConcurrentConsumers: 10 # to not send too many requests to data source
 
   USASourceStack:
     Type: AWS::CloudFormation::Stack
@@ -46,3 +47,4 @@ Resources:
         LoggingLevel: !Sub ${LoggingLevel}
         S3BucketName: !Sub ${S3BucketName}
         LambdaCode: ./lambda/usa_data_consumer
+        MaxConcurrentConsumers: 1 # for this data source we have only one file
