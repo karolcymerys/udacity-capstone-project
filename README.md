@@ -32,7 +32,7 @@ This model allows to research data by filtering and aggregating data by date and
 ### Data Sources
 Prepared ETL Data Pipeline allows import data for two countries: United Kingdom and United States, thus two data sources are utilized:
 
-1. [COVID-19 Statistics from United Kingdom](https://api.coronavirus.data.gov.uk):
+1. [COVID-19 Statistics from United Kingdom](https://api.coronavirus.data.gov.uk):\
 This RESTful Web Services provides endpoint that allows to get new COVID-19 infections for each day in JSON, CSV, XML (this project utilizes JSON format). 
 Example response:
 ```
@@ -56,7 +56,7 @@ Above response returns data as a JSON array and contains following details:
 - region name (`area_name`)
 - new infections (`cases`)  
 
-2. [The New York Times. (2021). Coronavirus (Covid-19) Data in the United States](https://github.com/nytimes/covid-19-data)
+2. [The New York Times. (2021). Coronavirus (Covid-19) Data in the United States](https://github.com/nytimes/covid-19-data)\
 This GitHub repository contains multiple csv files that are updated every day. 
 [One of them](https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv) allows to get COVID-19 statistics for each county.
 
@@ -100,7 +100,7 @@ Once staging tables are created, data quality check is done. There are executed 
 - `SELECT count(*) FROM s3_schema.uk_source s WHERE s.date_time IS NULL OR area_code is NULL OR new_cases IS NULL`
 - `SELECT count(*) FROM s3_schema.usa_source s WHERE s."date" IS NULL OR cases IS NULL`
 
-Both queries are checking the most crucial fields in terms of assumed model. Result of both SQL queries should be equal to 0.
+Both queries are checking the most crucial fields in terms of assumed model. Result of both SQL queries should be equal to `0`.
 
 ### Loading data to Multi-dimensional model
 When the Data Quality Check succeed, then data from staging tables are loaded to multi-dimensional model. 
@@ -152,15 +152,16 @@ export AWS_REGION=
 export ENVIRONMENT_NAME=
 ```
 Please keep in mind that `ENVIRONMENT_NAME` should be unique across all AWS environment and will be automatically transformed to lower cases.
+
 2. Execute command `source env_vars`
 3. Grant permission to execute script: 
 ```
 chmod +x start.sh
 chmod +x clean.sh
 ```
-3. Run script `start.sh`. Make sure that you have access to build docker images as lambda will be built in docker containers. This script will build needed AWS infrastructure, create tables in Amazon Redshift and run Apache Airflow in Docker Environment. Connections will be added automatically to Apache Airflow as environmental variables.
-4. Go to `localhost:8080`. User: `airflow`, password `airflow`
-5. Run ETL Data Pipeline: `covid_19_statistics`
-6. In order to analyze imported data execute command `aws redshift describe-clusters --cluster-identifier ${ENVIRONMENT_NAME}-redshift-cluster | grep .redshift.amazonaws.com | cut -d "\"" -f4`. It will return host of Redshift Cluster. Please use returned value to connect to Redshift Cluster using your favourite Database Client (Database: `udacity-capstone-project`, User: `admin`, password: `AwsSecret123`).
-7. Hit `Ctrl + C`, when you finish working with this project
-8. Run script `clean.sh` to remove AWS infrastructure
+4. Run script `start.sh`. Make sure that you have access to build docker images as lambda will be built in docker containers. This script will build needed AWS infrastructure, create tables in Amazon Redshift and run Apache Airflow in Docker Environment. Connections will be added automatically to Apache Airflow as environmental variables.
+5. Go to `localhost:8080`. User: `airflow`, password `airflow`
+6. Run ETL Data Pipeline: `covid_19_statistics`
+7. In order to analyze imported data execute command `aws redshift describe-clusters --cluster-identifier ${ENVIRONMENT_NAME}-redshift-cluster | grep .redshift.amazonaws.com | cut -d "\"" -f4`. It will return host of Redshift Cluster. Please use returned value to connect to Redshift Cluster using your favourite Database Client (Database: `udacity-capstone-project`, User: `admin`, password: `AwsSecret123`).
+8. Hit `Ctrl + C`, when you finish working with this project
+9. Run script `clean.sh` to remove AWS infrastructure
