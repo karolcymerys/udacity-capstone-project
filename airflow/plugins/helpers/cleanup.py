@@ -3,16 +3,13 @@ import os
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
-print('I was invoked.1')
 AWS_CREDENTIALS = 'AWS_CREDENTIALS'
 REDSHIFT_CONNECTION = 'REDSHIFT_CONNECTION'
 AWS_REGION = os.environ['AWS_REGION']
 ENVIRONMENT_NAME = os.environ['ENVIRONMENT_NAME']
-print('I was invoked.2')
 
 
 def cleanup(context):
-    print('I was invoked.')
     postgres_hook = PostgresHook(REDSHIFT_CONNECTION)
     aws_hook = AwsBaseHook(aws_conn_id=AWS_CREDENTIALS, client_type='s3')
     s3_client = aws_hook.get_client_type(client_type='s3', region_name=AWS_REGION)

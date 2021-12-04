@@ -32,15 +32,15 @@ default_args = {
 }
 
 
-with DAG('covid_metrics_etl',
+with DAG('covid_19_statistics',
          default_args=default_args,
-         description='ETL process to extract, transform, load covid metrics',
+         description='ETL Data Pipeline for COVID-19 statistics',
          on_failure_callback=cleanup,
          on_success_callback=cleanup) as dag:
     start_operator = DummyOperator(task_id='start')
 
     with TaskGroup(group_id='stream_sources') as stream_sources_group:
-        uk_data_stream_operator = StreamSourcesOperator(task_id='stream_data_for_uk',
+        uk_data_stream_operator = StreamSourcesOperator(task_id='stream_links_for_uk',
                                                         aws_conn_id=AWS_CREDENTIALS,
                                                         aws_region=AWS_REGION,
                                                         source_name='uk_source',
@@ -49,7 +49,7 @@ with DAG('covid_metrics_etl',
                                                         link_template=LinkTemplates.UK_CASES_SOURCE,
                                                         data_format='json')
 
-        usa_data_stream_operator = StreamSourcesOperator(task_id='stream_data_for_usa',
+        usa_data_stream_operator = StreamSourcesOperator(task_id='stream_links_for_usa',
                                                          aws_conn_id=AWS_CREDENTIALS,
                                                          aws_region=AWS_REGION,
                                                          source_name='usa_source',

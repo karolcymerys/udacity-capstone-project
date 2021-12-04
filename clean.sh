@@ -1,5 +1,6 @@
 #!/bin/bash
 
+ENVIRONMENT_NAME=$(echo $ENVIRONMENT_NAME | tr '[:upper:]' '[:lower:]')
 cd ./airflow
 rm ./.env
 docker-compose down -v
