@@ -28,9 +28,12 @@ def handler(event, context):
     source = message['source']
     destination = message['destination']
 
-    logger.info(f'Fetching data to: {source}')
-    response = requests.get(source).json()
-    data = bytes(json.dumps(response['data']), 'utf-8')
-    logger.info(f'Saving data to S3: {destination}')
-    s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=destination, Body=BytesIO(data))
-    logger.info(f'Data saved in S3: {destination}')
+    logger.info(f'Fetching data from: {source}')
+    response = requests.get(source)
+    if response.status_code == 200:
+        data = bytes(json.dumps(response['data'].json()), 'utf-8')
+        logger.info(f'Saving data to S3: {destination}')
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=destination, Body=BytesIO(data))
+        logger.info(f'Data saved in S3: {destination}')
+    else:
+        logger.info(f'Received response with status code: {response.status_code}. Skipping')
