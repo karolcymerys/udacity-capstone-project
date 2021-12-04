@@ -32,7 +32,7 @@ This model allows to research data by filtering and aggregating data by date and
 ### Data Sources
 Prepared ETL Data Pipeline allows import data for two countries: United Kingdom and United States, thus two data sources are utilized:
 
-####[COVID-19 Statistics from United Kingdom](https://api.coronavirus.data.gov.uk):
+1. [COVID-19 Statistics from United Kingdom](https://api.coronavirus.data.gov.uk):
 This RESTful Web Services provides endpoint that allows to get new COVID-19 infections for each day in JSON, CSV, XML (this project utilizes JSON format). 
 Example response:
 ```
@@ -56,7 +56,7 @@ Above response returns data as a JSON array and contains following details:
 - region name (`area_name`)
 - new infections (`cases`)  
 
-####[The New York Times. (2021). Coronavirus (Covid-19) Data in the United States](https://github.com/nytimes/covid-19-data)
+2. [The New York Times. (2021). Coronavirus (Covid-19) Data in the United States](https://github.com/nytimes/covid-19-data)
 This GitHub repository contains multiple csv files that are updated every day. 
 [One of them](https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv) allows to get COVID-19 statistics for each county.
 
@@ -68,7 +68,7 @@ The structure of this file is as follows:
 - cases (total number of recorded cases for this county since the pandemic occurred),
 - deaths (total number of recorded deaths for this county since the pandemic occurred).
 
-## Flow
+## ETL Data Pipeline: Apache Airflow DAG
 
 ETL Data Pipeline was prepared as Apache Airflow's DAG. Following diagram shows the whole flow of this ETL Data Pipeline:
 ![Apache Airflow DAG](docs/airflow.png?raw=true "Apache Airflow DAG")
@@ -129,15 +129,15 @@ We would only need to use proper source that would provide statistics with new c
 ### The database needed to be accessed by 100+ people.
 When data in database would be needed to be accessed by more than 100 people, then probably would be needed to increase resources (CPU's, memory, number of nodes) for Redshift Cluster.
 
-### Run ETL Project
-#### Requirements
+## Run ETL Project
+### Requirements
 - Unix system
 - AWS CLI
 - AWS SAM
 - Docker
 - Docker compose
 
-#### Building infrastructure
+### Building infrastructure and running ETL Data Pipeline
 In scope of this project AWS infrastructure was prepared as AWS CloudFormation templates, so whole infrastructure can be easily prepared.
 Deployment script is located in `start.sh`.
 
