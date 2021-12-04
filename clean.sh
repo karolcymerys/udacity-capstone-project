@@ -1,6 +1,9 @@
 #!/bin/bash
 
-rm ./airflow/.env
+cd ./airflow
+rm ./.env
+docker-compose down -v
+cd ..
 
 aws s3 rm s3://${ENVIRONMENT_NAME}-udacity-capstone-project/raw_data --recursive
 

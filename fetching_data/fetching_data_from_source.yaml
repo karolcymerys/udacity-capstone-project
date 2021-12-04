@@ -16,7 +16,7 @@ Parameters:
     Type: String
 
   MaxConcurrentConsumers:
-    Desciption: Max number of concurrent consumers from SQS
+    Description: Max number of concurrent consumers from SQS
     Type: Number
 
   SNSTopicARN:

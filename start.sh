@@ -44,7 +44,7 @@ debian-psql
 cd ../airflow
 
 echo AIRFLOW_UID=1000 >> .env
-echo AIRFLOW_CONN_AWS_CREDENTIALS=aws://$AWS_ACCESS_KEY_ID:$($AWS_SECRET_ACCESS_KEY | tr -c \ %2F)@ >> .env
+echo AIRFLOW_CONN_AWS_CREDENTIALS=aws://$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY@ >> .env
 echo AIRFLOW_CONN_REDSHIFT_CONNECTION=postgresql://admin:AwsSecret123@$REDSHIFT_HOST:5439/udacity-capstone-project >> .env
 echo AWS_REGION=$AWS_REGION >> .env
 echo ENVIRONMENT_NAME=$ENVIRONMENT_NAME >> .env

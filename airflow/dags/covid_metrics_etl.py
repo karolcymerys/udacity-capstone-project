@@ -5,11 +5,11 @@ from airflow import DAG
 from airflow.operators.dummy import DummyOperator
 from airflow.utils.task_group import TaskGroup
 
+from helpers.cleanup import cleanup
 from helpers.link_templates import LinkTemplates
 from helpers.sql_queries import SQLQueries
 from operators.create_staging_table_operator import CreateStagingTableOperator
 from operators.data_quality_operator import DataQualityOperator
-from operators.delete_staging_table_operator import DeleteStagingTableOperator
 from operators.execute_query_operator import ExecuteQueryOperator
 from operators.source_stream_operator import StreamSourcesOperator
 from sensors.queue_state_sensor import QueueStateSensor
@@ -21,11 +21,22 @@ AWS_REGION = os.environ['AWS_REGION']
 ENVIRONMENT_NAME = os.environ['ENVIRONMENT_NAME']
 TOPIC_ARN = os.environ['TOPIC_ARN']
 
-DATE_RANGE = ('2021-11-1', '2021-11-2')
+DATE_RANGE = ('2020-04-22', datetime.datetime.now().strftime('%Y-%m-%d'))
+
+default_args = {
+    'owner': 'aiflow',
+    'depends_on_past': False,
+    'start_date': datetime.datetime.now(),
+    'retries': 3,
+    'retry_delay': datetime.timedelta(minutes=1)
+}
+
 
 with DAG('covid_metrics_etl',
+         default_args=default_args,
          description='ETL process to extract, transform, load covid metrics',
-         start_date=datetime.datetime.now()) as dag:
+         on_failure_callback=cleanup,
+         on_success_callback=cleanup) as dag:
     start_operator = DummyOperator(task_id='start')
 
     with TaskGroup(group_id='stream_sources') as stream_sources_group:
@@ -108,17 +119,8 @@ with DAG('covid_metrics_etl',
                                                                      redshift_conn_id=REDSHIFT_CONNECTION,
                                                                      sql_query=SQLQueries.DIM_REGION_REMOVE_DUPLICATES)
 
-    with TaskGroup(group_id='deleting_staging_tables') as deleting_staging_tables:
-        uk_delete_staging_table_operator = DeleteStagingTableOperator(task_id='delete_external_table_for_uk',
-                                                                      redshift_conn_id=REDSHIFT_CONNECTION,
-                                                                      table_name='uk_source')
-
-        usa_delete_staging_table_operator = DeleteStagingTableOperator(task_id='delete_external_table_for_usa',
-                                                                       redshift_conn_id=REDSHIFT_CONNECTION,
-                                                                       table_name='usa_source')
-
     end_operator = DummyOperator(task_id='finish_execution', dag=dag)
 
     start_operator >> stream_sources_group >> queues_state_sensor >> staging_tables_creation
     staging_tables_creation >> data_quality_check >> loading_data
-    loading_data >> handling_duplicates_in_dim_tables >> deleting_staging_tables >> end_operator
+    loading_data >> handling_duplicates_in_dim_tables >> end_operator
