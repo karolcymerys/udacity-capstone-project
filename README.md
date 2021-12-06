@@ -29,6 +29,23 @@ Data are loaded to following multi-dimensional model:
 
 This model allows to research data by filtering and aggregating data by date and region, where new infections occurred. 
 
+### Data dictionary
+
+| Column Name  | Description |
+| ------------- | ------------- |
+| unique_id  | Unique id in dimension table to recognized duplicates |
+| new_cases  | Number of new infections in given day and region  |
+| date_id  | Date id in format YYYY-MM-DD  |
+| day  | Day of month  |
+| month  | Month of year  |
+| year  | Year  |
+| weekday  | Day of week  |
+| week  | Week of year  |
+| region_id  | Content Cell  |
+| name  | Region name  |
+| super_region  | Name of super region  |
+| country  | Country of region  |
+
 ### Data Sources
 Prepared ETL Data Pipeline allows import data for two countries: United Kingdom and United States, thus two data sources are utilized:
 
@@ -127,7 +144,7 @@ Actually this mechanism is almost ready to cover that scenario.
 We would only need to use proper sources that would provide statistics with new cases per day (not total number of infections since pandemic occurred).
 
 ### The database needed to be accessed by 100+ people.
-When data in database would be needed to be accessed by more than 100 people, then probably we would be needed to increase resources (CPU's, memory, number of nodes) for Redshift Cluster.
+When data in database would be needed to be accessed by more than 100 people, then probably it would be needed to increase resources (CPU's, memory, number of nodes) for Redshift Cluster.
 
 ## Run ETL Project
 ### Requirements
@@ -165,3 +182,16 @@ chmod +x clean.sh
 7. In order to analyze imported data execute command `aws redshift describe-clusters --cluster-identifier ${ENVIRONMENT_NAME}-redshift-cluster | grep .redshift.amazonaws.com | cut -d "\"" -f4`. It will return host of Redshift Cluster. Please use returned value to connect to Redshift Cluster using your favourite Database Client (Database: `udacity-capstone-project`, User: `admin`, password: `AwsSecret123`).
 8. Hit `Ctrl + C`, when you finish working with this project
 9. Run script `clean.sh` to remove AWS infrastructure
+
+## Demo
+### DAG is successfully complete
+![DAG is successfully complete](docs/airflow-tree.png?raw=true "DAG is successfully complete")
+
+### How many of infections were recorded in 11-th November 2011 in each country?
+![How many of infections were recorded in 11-th November 2011 in each country?](docs/query_1.png?raw=true "How many of infections were recorded in 11-th November 2011 in each country?")
+
+### On which day of the week the average number of new infections was the greatest? 
+![On which day of the week the average number of new infections was the greatest?](docs/query_2.png?raw=true "On which day of the week the average number of new infections was the greatest?")
+
+### What is the average number of new infections for next months for each country? 
+![What is the average number of new infections for next months for each country?](docs/query_3.png?raw=true "What is the average number of new infections for next months for each country?")
